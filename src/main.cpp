@@ -1,11 +1,10 @@
-#include <clang/AST/Decl.h>
-#include <clang/ASTMatchers/ASTMatchers.h>
 #include <iostream>
 
-#include <clang/AST/ASTDumper.h>
-#include <clang/AST/ASTTypeTraits.h>
+#include <clang/AST/Decl.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
+#include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/Frontend/ASTUnit.h>
+#include <clang/Lex/Lexer.h>
 #include <clang/Tooling/JSONCompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 
@@ -32,9 +31,15 @@ int main(int argc, char** argv) {
 
     assert(ASTs.size() == 1);
 
+    auto& context = ASTs[0]->getASTContext();
+    const auto& source = ASTs[0]->getSourceManager();
+    const auto& options = ASTs[0]->getLangOpts();
+
     const auto matcher = clang::ast_matchers::functionDecl(clang::ast_matchers::hasName(argv[3])).bind("root");
-    const auto matches = clang::ast_matchers::match(matcher, ASTs[0]->getASTContext());
+    const auto matches = clang::ast_matchers::match(matcher, context);
     for (const auto& match : matches) {
-        match.getNodeAs<clang::FunctionDecl>("root")->dumpColor();
+        const auto* root = match.getNodeAs<clang::FunctionDecl>("root");
+        const auto range = clang::CharSourceRange::getCharRange(root->getSourceRange());
+        std::cout << clang::Lexer::getSourceText(range, source, options).str() << std::endl;
     }
 }
